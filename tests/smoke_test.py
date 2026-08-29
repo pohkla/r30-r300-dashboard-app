@@ -34,6 +34,23 @@ def run() -> None:
     assert len(plans) == 11
     assert sum(item["result"] for item in plans) == 12500
     assert next(item for item in plans if item["id"] == 10)["result"] == 2500
+    assert all(item["symbol"] == "XAUUSD" for item in plans)
+
+    eurusd = normalize_trade({
+        "symbol": "EURUSD", "side": "SELL", "entry": 1.16664,
+        "stop_loss": 1.17262, "tp1": 1.15460, "status": "pending",
+    })
+    assert eurusd["risk"] == 598
+    assert eurusd["reward"] == 1204
+    assert eurusd["risk_pips"] == 59.8
+    assert eurusd["reward_pips"] == 120.4
+
+    usdjpy = normalize_trade({
+        "symbol": "USDJPY", "side": "BUY", "entry": 145.100,
+        "stop_loss": 144.850, "tp1": 145.600, "status": "pending",
+    })
+    assert usdjpy["risk"] == 250
+    assert usdjpy["reward"] == 500
 
     with tempfile.TemporaryDirectory() as temp_dir:
         test_data = Path(temp_dir) / "trades.json"
@@ -45,7 +62,7 @@ def run() -> None:
         saved = client.post(
             "/admin/trade/save",
             data={
-                "csrf": form_csrf, "id": "0", "side": "BUY", "status": "pending",
+                "csrf": form_csrf, "id": "0", "symbol": "EURUSD", "side": "BUY", "status": "pending",
                 "entry": "4500", "stop_loss": "4470", "tp1": "4560", "tp2": "",
                 "highest_target": "", "open_at": "2026-08-21T16:00", "close_at": "", "note": "smoke test",
             },
