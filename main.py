@@ -32,6 +32,13 @@ GITHUB_REPO = os.getenv("GITHUB_REPO", "")
 GITHUB_FILE = os.getenv("GITHUB_FILE", "data/trades.json")
 GITHUB_BRANCH = os.getenv("GITHUB_BRANCH", "main")
 
+SUPPORTED_SYMBOLS = (
+    "XAUUSD",
+    "EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "USDCAD", "USDCHF",
+    "USDJPY", "EURJPY", "GBPJPY", "AUDJPY",
+    "EURGBP", "EURCHF", "EURAUD", "GBPAUD", "GBPCHF",
+)
+
 app = FastAPI(title="R30 / R300 Trade Dashboard", docs_url=None, redoc_url=None)
 app.add_middleware(
     SessionMiddleware,
@@ -140,6 +147,29 @@ def number(value: float | int | None) -> str:
     return f"{value:,.0f}"
 
 
+def symbol_digits(symbol: str) -> int:
+    """Return the broker-style quote precision used by the journal."""
+    if symbol == "XAUUSD":
+        return 3
+    return 3 if symbol.endswith("JPY") else 5
+
+
+def point_size(symbol: str) -> float:
+    """One point is the smallest displayed quote increment."""
+    if symbol == "XAUUSD":
+        return 0.01
+    return 0.001 if symbol.endswith("JPY") else 0.00001
+
+
+def price(value: float | int | None, symbol: str = "XAUUSD") -> str:
+    if value is None:
+        return "—"
+    if symbol == "XAUUSD":
+        rendered = f"{value:,.3f}".rstrip("0").rstrip(".")
+        return rendered
+    return f"{value:.{symbol_digits(symbol)}f}"
+
+
 def thai_datetime(value: str | None) -> str:
     if not value:
         return "ไม่พบข้อมูล"
@@ -153,6 +183,9 @@ def thai_datetime(value: str | None) -> str:
 
 def normalize_trade(trade: dict[str, Any]) -> dict[str, Any]:
     item = dict(trade)
+    symbol = str(item.get("symbol") or "XAUUSD").upper()
+    if symbol not in SUPPORTED_SYMBOLS:
+        symbol = "XAUUSD"
     entry = float(item.get("entry") or 0)
     stop_loss = float(item["stop_loss"]) if item.get("stop_loss") not in (None, "") else None
     tp1 = float(item.get("tp1") or 0)
@@ -160,13 +193,18 @@ def normalize_trade(trade: dict[str, Any]) -> dict[str, Any]:
     highest = item.get("highest_target")
     target_name = highest if highest in {"TP1", "TP2"} else "TP1"
     target_price = tp2 if target_name == "TP2" and tp2 is not None else tp1
-    reward = round(abs(target_price - entry) * 100)
-    risk = round(abs(stop_loss - entry) * 100) if stop_loss is not None else 0
+    size = point_size(symbol)
+    reward = round(abs(target_price - entry) / size)
+    risk = round(abs(stop_loss - entry) / size) if stop_loss is not None else 0
+    reward_pips = reward / 10 if symbol != "XAUUSD" else None
+    risk_pips = risk / 10 if symbol != "XAUUSD" else None
     state = item.get("status", "pending")
     result = reward if state == "win" else -risk if state == "loss" else 0
     rr = f"1:{reward / risk:.2f}" if risk else "—"
     item.update(
         entry=entry,
+        symbol=symbol,
+        asset_type="GOLD" if symbol == "XAUUSD" else "FOREX",
         stop_loss=stop_loss,
         tp1=tp1,
         tp2=tp2,
@@ -174,6 +212,8 @@ def normalize_trade(trade: dict[str, Any]) -> dict[str, Any]:
         target_price=target_price,
         reward=reward,
         risk=risk,
+        reward_pips=reward_pips,
+        risk_pips=risk_pips,
         result=result,
         rr=rr,
     )
@@ -187,6 +227,7 @@ def status_label(value: str) -> str:
 
 
 templates.env.filters["num"] = number
+templates.env.filters["price"] = price
 templates.env.filters["thai_dt"] = thai_datetime
 templates.env.globals["status_label"] = status_label
 
@@ -235,11 +276,14 @@ def build_dashboard_context(request: Request, is_admin: bool) -> dict[str, Any]:
     q = request.query_params.get("q", "")[:80].strip()
     status_filter = request.query_params.get("status", "")
     side_filter = request.query_params.get("side", "")
+    symbol_filter = request.query_params.get("symbol", "")
     sort_key = request.query_params.get("sort", "latest")
     if status_filter not in {"", "win", "loss", "no-entry", "pending"}:
         status_filter = ""
     if side_filter not in {"", "BUY", "SELL"}:
         side_filter = ""
+    if symbol_filter not in {"", *SUPPORTED_SYMBOLS}:
+        symbol_filter = ""
     if sort_key not in {"latest", "oldest", "result_desc", "result_asc", "entry_desc", "entry_asc"}:
         sort_key = "latest"
 
@@ -249,9 +293,11 @@ def build_dashboard_context(request: Request, is_admin: bool) -> dict[str, Any]:
             continue
         if side_filter and plan["side"] != side_filter:
             continue
+        if symbol_filter and plan["symbol"] != symbol_filter:
+            continue
         searchable = " ".join(
             str(plan.get(key, ""))
-            for key in ("id", "side", "entry", "stop_loss", "tp1", "tp2", "note", "open_at", "close_at")
+            for key in ("id", "symbol", "side", "entry", "stop_loss", "tp1", "tp2", "note", "open_at", "close_at")
         )
         if q and q.casefold() not in searchable.casefold():
             continue
@@ -289,7 +335,7 @@ def build_dashboard_context(request: Request, is_admin: bool) -> dict[str, Any]:
         points.append(f"{x:.1f},{y:.1f}")
     area = f"{pad_x},{chart_h-pad_y} {' '.join(points)} {chart_w-pad_x},{chart_h-pad_y}"
 
-    query = {"q": q, "status": status_filter, "side": side_filter, "sort": sort_key}
+    query = {"q": q, "status": status_filter, "side": side_filter, "symbol": symbol_filter, "sort": sort_key}
     page_urls = {}
     for page_no in range(1, total_pages + 1):
         params = {k: v for k, v in query.items() if v and not (k == "sort" and v == "latest")}
@@ -317,6 +363,8 @@ def build_dashboard_context(request: Request, is_admin: bool) -> dict[str, Any]:
         "q": q,
         "status_filter": status_filter,
         "side_filter": side_filter,
+        "symbol_filter": symbol_filter,
+        "supported_symbols": SUPPORTED_SYMBOLS,
         "sort_key": sort_key,
         "chart_points": " ".join(points),
         "chart_area": area,
@@ -408,13 +456,13 @@ def new_trade(request: Request):
     if redirect:
         return redirect
     form = {
-        "id": 0, "side": "BUY", "entry": "", "stop_loss": "", "tp1": "", "tp2": "",
+        "id": 0, "symbol": "XAUUSD", "side": "BUY", "entry": "", "stop_loss": "", "tp1": "", "tp2": "",
         "highest_target": "", "status": "pending", "open_at": "", "close_at": "", "note": "",
     }
     return templates.TemplateResponse(
         request=request,
         name="trade_form.html",
-        context={"request": request, "form": form, "editing": False, "errors": [], "csrf": csrf_token(request)},
+        context={"request": request, "form": form, "editing": False, "errors": [], "csrf": csrf_token(request), "supported_symbols": SUPPORTED_SYMBOLS},
     )
 
 
@@ -427,10 +475,11 @@ def edit_trade(request: Request, trade_id: int):
     if not trade:
         raise HTTPException(status_code=404, detail="ไม่พบแผน")
     form = {key: "" if value is None else value for key, value in trade.items()}
+    form.setdefault("symbol", "XAUUSD")
     return templates.TemplateResponse(
         request=request,
         name="trade_form.html",
-        context={"request": request, "form": form, "editing": True, "errors": [], "csrf": csrf_token(request)},
+        context={"request": request, "form": form, "editing": True, "errors": [], "csrf": csrf_token(request), "supported_symbols": SUPPORTED_SYMBOLS},
     )
 
 
@@ -439,6 +488,7 @@ def save_trade(
     request: Request,
     csrf: str = Form(...),
     trade_id: int = Form(0, alias="id"),
+    symbol: str = Form("XAUUSD"),
     side: str = Form(...),
     status_value: str = Form(..., alias="status"),
     entry: str = Form(...),
@@ -455,11 +505,14 @@ def save_trade(
         return redirect
     verify_csrf(request, csrf)
     form = {
-        "id": trade_id, "side": side, "status": status_value, "entry": entry,
+        "id": trade_id, "symbol": symbol.upper(), "side": side, "status": status_value, "entry": entry,
         "stop_loss": stop_loss, "tp1": tp1, "tp2": tp2, "highest_target": highest_target,
         "open_at": open_at, "close_at": close_at, "note": note.strip(),
     }
     errors = []
+    symbol = symbol.upper()
+    if symbol not in SUPPORTED_SYMBOLS:
+        errors.append("สินทรัพย์หรือคู่เงินไม่ถูกต้อง")
     if side not in {"BUY", "SELL"}:
         errors.append("ฝั่งไม่ถูกต้อง")
     if status_value not in {"pending", "win", "loss", "no-entry"}:
@@ -484,7 +537,7 @@ def save_trade(
         return templates.TemplateResponse(
             request=request,
             name="trade_form.html",
-            context={"request": request, "form": form, "editing": bool(trade_id), "errors": errors, "csrf": csrf_token(request)},
+            context={"request": request, "form": form, "editing": bool(trade_id), "errors": errors, "csrf": csrf_token(request), "supported_symbols": SUPPORTED_SYMBOLS},
             status_code=422,
         )
 
@@ -492,6 +545,7 @@ def save_trade(
     new_id = trade_id or max([int(t.get("id", 0)) for t in trades] + [0]) + 1
     record = {
         "id": new_id,
+        "symbol": symbol,
         "side": side,
         "entry": entry_value,
         "stop_loss": stop_value,
@@ -518,7 +572,7 @@ def save_trade(
         return templates.TemplateResponse(
             request=request,
             name="trade_form.html",
-            context={"request": request, "form": form, "editing": bool(trade_id), "errors": errors, "csrf": csrf_token(request)},
+            context={"request": request, "form": form, "editing": bool(trade_id), "errors": errors, "csrf": csrf_token(request), "supported_symbols": SUPPORTED_SYMBOLS},
             status_code=502,
         )
     return RedirectResponse("/admin?saved=1", status_code=status.HTTP_303_SEE_OTHER)
