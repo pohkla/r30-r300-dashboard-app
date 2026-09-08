@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="รายละเอียดแผน R30 / R300 #{{ p.id }}">
+  <title>แผน #{{ p.id }} · R30 / R300</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v=11">
+</head>
+<body>
+<main class="trade-detail-page">
+  <header class="detail-head">
+    <div>
+      <span class="eyebrow">TRADE DETAIL</span>
+      <div class="detail-title-line"><h1>แผน #{{ p.id }}</h1><span class="side {{ p.side|lower }}">{{ p.side }}</span><span class="status {{ p.status }}">{{ status_label(p.status) }}</span></div>
+      <p>รายละเอียดแผนและหมายเหตุที่บันทึกไว้ใน Forward Test Journal</p>
+    </div>
+    <div class="detail-head-actions">
+      <a class="back-link" href="{{ back_url }}">← กลับตาราง</a>
+      {% if is_admin %}<a class="detail-edit-button" href="/admin/trade/{{ p.id }}">แก้ไขแผน</a>{% endif %}
+    </div>
+  </header>
+
+  <section class="detail-summary-card">
+    <div class="detail-status-bar {{ p.status }}"></div>
+    <div class="detail-metrics">
+      <article><span>Entry</span><strong>{{ p.entry|num }}</strong></article>
+      <article><span>Stop Loss</span><strong>{{ p.stop_loss|num }}</strong>{% if p.risk %}<small>−{{ p.risk|num }} จุด</small>{% endif %}</article>
+      <article><span>{{ p.target_name }}</span><strong>{{ p.target_price|num }}</strong><small>+{{ p.reward|num }} จุด</small></article>
+      <article><span>R:R</span><strong>{{ p.rr }}</strong></article>
+      <article><span>ผลลัพธ์</span>{% if p.result %}<strong class="{{ 'positive' if p.result > 0 else 'negative' }}">{{ '+' if p.result > 0 else '−' }}{{ p.result|abs|num }} จุด</strong>{% else %}<strong>—</strong><small>ไม่นับผลลัพธ์</small>{% endif %}</article>
+    </div>
+  </section>
+
+  <div class="detail-grid">
+    <section class="detail-card">
+      <div class="detail-card-head"><span class="detail-icon">↗</span><div><h2>ข้อมูลราคาและเป้าหมาย</h2><p>ค่าที่ใช้ในแผนนี้</p></div></div>
+      <dl class="detail-list">
+        <div><dt>ฝั่ง</dt><dd><span class="side {{ p.side|lower }}">{{ p.side }}</span></dd></div>
+        <div><dt>Entry</dt><dd>{{ p.entry|num }}</dd></div>
+        <div><dt>Stop Loss</dt><dd>{{ p.stop_loss|num }}{% if p.risk %} <small>(−{{ p.risk|num }} จุด)</small>{% endif %}</dd></div>
+        <div><dt>TP1</dt><dd>{{ p.tp1|num }}</dd></div>
+        <div><dt>TP2</dt><dd>{{ p.tp2|num }}</dd></div>
+        <div><dt>เป้าหมายสูงสุดที่ทำได้</dt><dd>{{ p.target_name }} {{ p.target_price|num }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="detail-card">
+      <div class="detail-card-head"><span class="detail-icon">◷</span><div><h2>วันและเวลา</h2><p>ช่วงเวลาของแผน</p></div></div>
+      <dl class="detail-list">
+        <div><dt>วัน/เวลาเข้า</dt><dd>{{ p.open_at|thai_dt }}</dd></div>
+        <div><dt>วัน/เวลาปิด</dt><dd>{{ p.close_at|thai_dt }}</dd></div>
+        <div><dt>สถานะ</dt><dd><span class="status {{ p.status }}">{{ status_label(p.status) }}</span></dd></div>
+        <div><dt>R:R</dt><dd>{{ p.rr }}</dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <section class="detail-note-card">
+    <div class="detail-card-head"><span class="detail-icon">✎</span><div><h2>หมายเหตุ</h2><p>เงื่อนไข ผลที่เกิดขึ้น หรือบทเรียนจากแผน</p></div></div>
+    {% if p.note %}<p class="detail-note-text">{{ p.note }}</p>{% else %}<div class="detail-note-empty">ยังไม่มีหมายเหตุสำหรับแผนนี้</div>{% endif %}
+  </section>
+</main>
+</body>
+</html>

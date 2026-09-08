@@ -1,0 +1,13 @@
+[
+  {"id":1,"side":"BUY","entry":4360,"stop_loss":4330,"tp1":4420,"tp2":null,"highest_target":"TP1","status":"win","open_at":"2026-08-11T15:03","close_at":"2026-08-12T16:38","note":"","result_points":6000},
+  {"id":2,"side":"SELL","entry":4433,"stop_loss":4453,"tp1":4390,"tp2":4353,"highest_target":"TP2","status":"win","open_at":null,"close_at":"2026-08-13T23:17","note":"นับเฉพาะ TP2 ซึ่งเป็นเป้าหมายสูงสุดที่ชน","result_points":8000},
+  {"id":3,"side":"SELL","entry":4394,"stop_loss":4424,"tp1":4354,"tp2":null,"highest_target":null,"status":"no-entry","open_at":null,"close_at":null,"note":"ไม่ได้เข้าแผน","result_points":0},
+  {"id":4,"side":"BUY","entry":4349,"stop_loss":4319,"tp1":4539,"tp2":null,"highest_target":null,"status":"loss","open_at":"2026-08-14T02:10","close_at":null,"note":"เข้าเร็วด้วย Buy Limit","result_points":-3000},
+  {"id":5,"side":"BUY","entry":4319,"stop_loss":4289,"tp1":4359,"tp2":null,"highest_target":"TP1","status":"win","open_at":"2026-08-14T09:35","close_at":"2026-08-14T18:30","note":"","result_points":4000},
+  {"id":6,"side":"SELL","entry":4394,"stop_loss":4424,"tp1":4054,"tp2":null,"highest_target":null,"status":"loss","open_at":"2026-08-17T12:20","close_at":null,"note":"กราฟกว้างเกินไป","result_points":-3000},
+  {"id":7,"side":"SELL","entry":4408,"stop_loss":null,"tp1":4348,"tp2":null,"highest_target":null,"status":"no-entry","open_at":null,"close_at":null,"note":"ไม่ได้เข้าแผน","result_points":0},
+  {"id":8,"side":"SELL","entry":4427,"stop_loss":4457,"tp1":4387,"tp2":null,"highest_target":"TP1","status":"win","open_at":null,"close_at":null,"note":"","result_points":4000},
+  {"id":9,"side":"BUY","entry":4393,"stop_loss":4363,"tp1":4539,"tp2":null,"highest_target":null,"status":"loss","open_at":null,"close_at":null,"note":"","result_points":-3000},
+  {"id":10,"side":"SELL","entry":4495,"stop_loss":4525,"tp1":4470,"tp2":4450,"highest_target":"TP1","status":"win","open_at":"2026-08-20T10:24","close_at":"2026-08-20T18:49","note":"หลังชน TP1 ราคาไม่ถึง TP2 และกลับขึ้นชน SL ควรปิดกำไรบางส่วนหรือเลื่อน SL ป้องกันกำไร","result_points":2500},
+  {"id":11,"side":"SELL","entry":4533,"stop_loss":4563,"tp1":4488,"tp2":4453,"highest_target":null,"status":"loss","open_at":"2026-08-21T10:05","close_at":"2026-08-21T13:35","note":"แผน SELL ชน Stop Loss ก่อนถึง TP1 และ TP2","result_points":-3000}
+]

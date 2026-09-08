@@ -1,0 +1,20 @@
+# Compiled MQL binaries and compiler/runtime logs
+*.ex5
+*.ex4
+*.log
+*.obj
+*.tmp
+*.bak
+*~
+
+# Local editor / operating system files
+.vs/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Generated tester output; keep deliberate test settings tracked
+backtest/results/
+backtest/cache/
+backtest/reports/

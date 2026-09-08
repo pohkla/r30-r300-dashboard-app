@@ -1,97 +1,94 @@
-# R30 / R300 Dashboard — Render + GitHub JSON
+# R300
 
-เวอร์ชันออนไลน์ฟรีในรูปแบบเดียวกับ Vehicle Dashboard
+R300 เป็น Project พัฒนา Expert Advisor `R300_EA` ด้วย MQL5 สำหรับ MetaTrader 5
+Broker ปัจจุบันคือ XM และ Symbol ทองคือ `GOLD`
+เวอร์ชัน 1.00 เป็น Skeleton แบบ **SIGNAL/BACKTEST SAFE MODE** เท่านั้น ยังไม่มีสัญญาณหรือกลยุทธ์
+Trading Logic ทั้งหมดต้องกำหนดใน `docs/R300_SPEC.md` ก่อนพัฒนา
 
-- `/dashboard` หน้า Dashboard สาธารณะ
-- `/login` หน้าเข้าสู่ระบบผู้ดูแล
-- `/admin` หน้าจัดการ เพิ่ม และแก้ไขแผน
-- GitHub JSON เป็นแหล่งจัดเก็บข้อมูลถาวร
-- Render Free เป็น Web Service สำหรับรัน FastAPI
-
-## โครงสร้าง
+## Project structure
 
 ```text
-main.py                 FastAPI, Login, GitHub API และการคำนวณ
-templates/              Dashboard, Login และฟอร์มแผน
-static/style.css        ธีมของระบบ
-data/trades.json        ข้อมูลเริ่มต้น 11 แผน/ใช้ทดสอบ Local
-requirements.txt        Python dependencies
-render.yaml             Blueprint สำหรับ Render
-.env.example            ตัวอย่าง Environment Variables
+R300/
+├── src/
+│   ├── R300_EA.mq5          # OnInit / OnDeinit / OnTick
+│   ├── R300_Config.mqh      # Inputs, version, magic number, fixed Safe Mode
+│   ├── R300_Trend.mqh       # H4 trend placeholder
+│   ├── R300_Structure.mqh   # H1 BOS / CHOCH / swings placeholder
+│   ├── R300_Setup.mqh       # M15 Volume Profile / RSI Divergence / Fibonacci
+│   ├── R300_Entry.mqh       # M5 Break & Retest / Rejection / Engulfing
+│   ├── R300_Risk.mqh        # Sizing / SL / maximum risk placeholder
+│   └── R300_Exit.mqh        # TP / BE / trailing / structure / partial close
+├── docs/
+│   └── R300_SPEC.md
+├── backtest/
+│   └── .gitkeep
+├── scripts/
+│   └── deploy-mt5.ps1
+├── README.md
+└── .gitignore
 ```
 
-## 1. เตรียม GitHub Repository เก็บข้อมูล
+## Architecture / Inputs
 
-สร้าง Repository เช่น `r30-r300-dashboard-data` แล้วสร้างไฟล์:
+ทุกโมดูลเป็น interface ที่คืน `R300_NOT_IMPLEMENTED` ไม่มีการคำนวณหรือยืนยันเงื่อนไขใด ๆ
+`OnTick()` ว่างโดยตั้งใจ ไม่เรียกโมดูลและไม่จัดการบัญชีหรือ Position
+`InpMagicNumber = 300` ใช้เป็น metadata เท่านั้น
+`InpExpectedSymbol = GOLD` ใช้แจ้งเตือนใน Log เมื่อ Symbol ต่างกัน ไม่ใช่กฎเทรด
+`R300_SAFE_MODE = true` เป็นค่าคงที่ ไม่มี Input ที่เปิดการซื้อขายได้
 
-```text
-data/trades.json
+## Compile ใน MetaEditor
+
+1. เปิด MetaEditor ของ MT5 (กด F4 จาก MT5)
+2. เลือก File > Open แล้วเปิด `D:\black\Project\R300\src\R300_EA.mq5`
+3. ให้ไฟล์ `.mqh` ทั้ง 7 ไฟล์อยู่ในโฟลเดอร์เดียวกัน เพราะใช้ local includes
+4. กด F7 และตรวจแท็บ Errors: ต้องได้ 0 errors และตรวจ warnings
+5. ไฟล์ `R300_EA.ex5` จะอยู่ข้าง Source และถูก Git ignore
+
+อ้างอิงรูปแบบ event handlers: [MQL5 Reference](https://www.mql5.com/en/docs/basis/function/events)
+
+## Deploy ไป MT5 (เมื่อผู้ใช้สั่งให้ Deploy เท่านั้น)
+
+เปิด PowerShell ที่ `D:\black\Project\R300` แล้วใช้:
+
+```powershell
+# ตรวจสอบและแสดงแผนโดยไม่ copy
+.\scripts\deploy-mt5.ps1 -WhatIf
+
+# Copy จริงเมื่อพร้อมและได้รับคำสั่ง Deploy
+.\scripts\deploy-mt5.ps1
 ```
 
-ให้นำไฟล์ `data/trades.json` จากแพ็กเกจนี้ไปใส่ เพื่อรักษาข้อมูล 11 แผนเดิม
+Source: `D:\black\Project\R300\src`
 
-สร้าง Fine-grained Personal Access Token โดยให้สิทธิ์เฉพาะ Repository นี้:
+Destination ที่แน่นอน:
+`C:\Users\Phadungsak\AppData\Roaming\MetaQuotes\Terminal\BB16F565FAAA6B23A20C26C49416FF05\MQL5\Experts\R300_EA`
 
-- Repository permissions → Contents → Read and write
-- ไม่ต้องเปิดสิทธิ์อื่น
+ตรวจ MT5 File > Open Data Folder ว่าตรงกับ terminal นี้ก่อน Deploy
+ไม่มีการเติม `MQL5` ซ้ำ สคริปต์ตรวจ source ครบและตรวจโฟลเดอร์ MQL5/Experts ก่อน
+สร้างเฉพาะโฟลเดอร์ R300_EA หากยังไม่มี คัดลอกเฉพาะ `.mq5` / `.mqh` ที่ระบุ 8 ไฟล์
+ทับไฟล์ชื่อเดียวกัน แสดงแต่ละไฟล์ที่ copy และหยุดเมื่อ error โดยไม่มีการลบไฟล์อื่น
+หาก copy ล้มเหลวกลางทาง อาจมีบางไฟล์ถูก copy แล้ว ให้แก้สาเหตุและรันใหม่
+สคริปต์ไม่ copy `.ex5` และไม่ compile ให้อัตโนมัติ
 
-## 2. เตรียม GitHub Repository สำหรับตัวระบบ
+หลัง Deploy ให้เปิด `MQL5\Experts\R300_EA\R300_EA.mq5` ใน MetaEditor แล้วกด F7
+จากนั้น Refresh รายการ Expert Advisors ใน Navigator ของ MT5
 
-สร้าง Repository อีกตัว เช่น `r30-r300-dashboard-app` แล้วอัปโหลดไฟล์ทั้งหมดในโฟลเดอร์นี้ โดยไม่อัปโหลดไฟล์ `.env`
+## Backtest
 
-## 3. Deploy บน Render Free
+1. Deploy และ Compile สำเนาใน MT5 ตามขั้นตอนด้านบน
+2. เปิด Strategy Tester (Ctrl+R) เลือก `R300_EA` และ Symbol `GOLD`
+3. เลือก timeframe เช่น M5 สำหรับตรวจ lifecycle ของ Skeleton (ยังไม่ใช่กฎกลยุทธ์)
+4. เลือกช่วงข้อมูลที่มี แล้วเริ่ม Single Test; ค่าช่วงเวลา, model, deposit, leverage และเกณฑ์กลยุทธ์ยังเป็น TODO ใน SPEC
+5. ตรวจ Journal ว่ามี `R300 EA initialized`, Trading mode, Symbol, Broker และ Server
+6. ผลที่คาดหวังคือไม่มี Order / Deal / Position ที่ EA สร้างขึ้น ไม่มีสัญญาณ และไม่มีผลตอบแทนให้ประเมินกลยุทธ์
 
-1. Login Render และเชื่อมบัญชี GitHub
-2. เลือก **New → Blueprint** แล้วเลือก Repository ของตัวระบบ
-3. Render จะอ่าน `render.yaml`
-4. เลือก Plan: **Free**
-5. ตั้งค่า Secret Environment Variables:
+เก็บผลทดสอบที่สร้างขึ้นใน `backtest/results/` หรือ `backtest/reports/` ซึ่ง Git ignore ไว้
+Demo Forward Test จะกำหนดภายหลังใน SPEC
 
-| Key | ค่า |
-|---|---|
-| `ADMIN_PASSWORD` | รหัสผ่านหน้า Admin ที่ตั้งเอง |
-| `GITHUB_TOKEN` | Fine-grained Token |
-| `GITHUB_REPO` | `username/r30-r300-dashboard-data` |
+## Safety warning
 
-ค่าที่เตรียมให้อัตโนมัติใน `render.yaml`:
-
-- `SESSION_SECRET` สุ่มโดย Render
-- `GITHUB_FILE=data/trades.json`
-- `GITHUB_BRANCH=main`
-- `COOKIE_SECURE=true`
-
-## 4. URL หลัง Deploy
-
-```text
-https://ชื่อ-service.onrender.com/dashboard
-https://ชื่อ-service.onrender.com/login
-https://ชื่อ-service.onrender.com/admin
-```
-
-## ทดสอบในเครื่อง
-
-```bash
-python -m venv .venv
-.venv/Scripts/activate
-pip install -r requirements.txt
-set COOKIE_SECURE=false
-set ADMIN_PASSWORD=รหัสผ่านทดสอบ
-uvicorn main:app --reload
-```
-
-เปิด `http://127.0.0.1:8000/dashboard`
-
-ทดสอบระบบแบบอัตโนมัติ:
-
-```bash
-python tests/smoke_test.py
-```
-
-หากไม่ตั้งค่า GitHub ระบบจะอ่านและเขียน `data/trades.json` ในเครื่องเพื่อการทดสอบเท่านั้น
-
-## หมายเหตุ Render Free
-
-- เมื่อไม่มีผู้เข้าใช้งานประมาณ 15 นาที Service จะพัก
-- การเปิดครั้งแรกหลังพักอาจรอประมาณ 1 นาที
-- ห้ามเก็บข้อมูลสำคัญใน filesystem ของ Render เพราะข้อมูลอาจหายเมื่อ Restart
-- ระบบนี้จึงบันทึกข้อมูลจริงไว้ใน GitHub JSON
+**เวอร์ชันปัจจุบันยังไม่อนุญาต Auto Trading** ให้ปิด Algo Trading สำหรับการใช้งานบนกราฟ
+Skeleton ไม่มีคำสั่งซื้อขายแม้เปิดปุ่ม Algo Trading: ไม่มี Buy/Sell, OrderSend,
+การเปิดหรือแก้ไข Position, external API, DLL หรือ WebRequest
+Safe Mode ใช้กับทุกบัญชีและ Strategy Tester ไม่สามารถปิดผ่าน Inputs
+อย่าใช้ผลทดสอบ Skeleton เป็นหลักฐานประสิทธิภาพกลยุทธ์ เพราะยังไม่มี Trading Logic
