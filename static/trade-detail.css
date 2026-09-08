@@ -7,5 +7,44 @@
 .trade-detail-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:24px}.trade-detail-metrics article{padding:16px;border:1px solid var(--line);border-radius:14px;background:#f9faff}.trade-detail-metrics span{display:block;color:var(--muted);font-size:.68rem;font-weight:800;text-transform:uppercase}.trade-detail-metrics strong{display:block;margin-top:7px;font-size:1.08rem}.trade-detail-metrics small{display:block;margin-top:3px;color:var(--muted);font-size:.7rem}
 .trade-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.trade-detail-card,.trade-detail-note{padding:20px;border:1px solid var(--line);border-radius:16px;background:#fff}.trade-detail-card h3,.trade-detail-note h3{margin:0;font-size:1rem}.trade-detail-card dl{margin:14px 0 0}.trade-detail-card dl div{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid #eef0f7}.trade-detail-card dl div:last-child{border-bottom:0}.trade-detail-card dt{color:var(--muted);font-size:.75rem}.trade-detail-card dd{margin:0;text-align:right;font-size:.82rem;font-weight:700}
 .trade-detail-note{margin-top:16px;background:linear-gradient(145deg,#fbfbff,#f6f7ff)}.trade-detail-note>div:first-child{display:flex;align-items:center;gap:12px}.detail-note-icon{display:grid;place-items:center;flex:0 0 38px;height:38px;border-radius:11px;background:var(--wash);color:var(--primary);font-weight:900}.trade-detail-note>div:first-child p{margin:2px 0 0;color:var(--muted);font-size:.74rem}.trade-detail-note-text{margin:16px 0 0;padding:16px;border:1px solid #e6e8f5;border-radius:12px;background:#fff;color:#404663;font-size:.88rem;line-height:1.75;white-space:pre-wrap}.trade-detail-note-empty{margin-top:16px;padding:16px;border:1px dashed #d6d9e8;border-radius:12px;color:#9499ad;text-align:center;font-size:.82rem}
-@media(max-width:900px){.trade-detail-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.trade-detail-grid{grid-template-columns:1fr}.trade-detail-head{flex-direction:column}.trade-detail-dialog{padding:24px}.trade-detail-overlay{padding:20px 12px}}
+
+/* Desktop trade table: fit inside the viewport and visually place Note last. */
+.table-wrap{overflow-x:hidden}
+.trade-table-with-notes{width:100%;min-width:0;table-layout:fixed;font-size:clamp(.68rem,.72vw,.82rem)}
+.trade-table-with-notes thead,.trade-table-with-notes tbody,.trade-table-with-notes tfoot{display:block;width:100%}
+.trade-table-with-notes thead tr,.trade-table-with-notes tbody tr{display:grid;grid-template-columns:4.5% 13% 8% 6% 7.5% 13% 15% 5.5% 14% 6.5% 7%;align-items:stretch;width:100%}
+.trade-table-with-notes th,.trade-table-with-notes td{min-width:0;padding:12px 9px;overflow:hidden;white-space:nowrap}
+.trade-table-with-notes th:nth-child(1),.trade-table-with-notes td:nth-child(1){grid-column:1}
+.trade-table-with-notes th:nth-child(2),.trade-table-with-notes td:nth-child(2){grid-column:2}
+.trade-table-with-notes th:nth-child(3),.trade-table-with-notes td:nth-child(3){grid-column:3}
+.trade-table-with-notes th:nth-child(4),.trade-table-with-notes td:nth-child(4){grid-column:4}
+.trade-table-with-notes th:nth-child(5),.trade-table-with-notes td:nth-child(5){grid-column:5}
+.trade-table-with-notes th:nth-child(6),.trade-table-with-notes td:nth-child(6){grid-column:6}
+.trade-table-with-notes th:nth-child(7),.trade-table-with-notes td:nth-child(7){grid-column:7}
+.trade-table-with-notes th:nth-child(8),.trade-table-with-notes td:nth-child(8){grid-column:8}
+.trade-table-with-notes th:nth-child(10),.trade-table-with-notes td:nth-child(10){grid-column:9}
+.trade-table-with-notes th:nth-child(11),.trade-table-with-notes td:nth-child(11){grid-column:10}
+.trade-table-with-notes th:nth-child(9),.trade-table-with-notes td:nth-child(9){grid-column:11}
+.trade-table-with-notes .trade-time{min-width:0}
+.trade-table-with-notes .result-cell{min-width:0;border-left-width:3px}
+.trade-table-with-notes .status{min-width:0;width:auto;padding:7px 9px}
+.trade-table-with-notes .result{display:block;margin:5px 0 0;font-size:.76rem}
+.trade-table-with-notes .result-note{display:block;margin:5px 0 0;font-size:.68rem}
+.trade-table-with-notes .note-cell{min-width:0;max-width:none}
+.trade-table-with-notes .note-cell span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trade-table-with-notes .view-cell{min-width:0}
+.trade-table-with-notes .view-link{font-size:.72rem;gap:3px}
+.trade-table-with-notes tfoot tr{display:grid;grid-template-columns:1fr auto;width:100%}
+.trade-table-with-notes tfoot td:first-child{grid-column:1;padding:12px 10px}
+.trade-table-with-notes tfoot td:last-child{grid-column:2;padding:12px 14px;white-space:nowrap}
+
+@media(max-width:1250px){
+  .trade-report{padding:20px 16px}
+  .trade-table-with-notes thead tr,.trade-table-with-notes tbody tr{grid-template-columns:4.5% 14% 8% 6% 7% 13% 16% 6% 15% 10.5%}
+  .trade-table-with-notes th,.trade-table-with-notes td{padding:10px 6px}
+  .trade-table-with-notes th:nth-child(11),.trade-table-with-notes td:nth-child(11){display:none}
+  .trade-table-with-notes th:nth-child(9),.trade-table-with-notes td:nth-child(9){grid-column:10}
+  .trade-table-with-notes th:nth-child(10),.trade-table-with-notes td:nth-child(10){grid-column:9}
+}
+@media(max-width:900px){.trade-detail-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.trade-detail-grid{grid-template-columns:1fr}.trade-detail-head{flex-direction:column}.trade-detail-dialog{padding:24px}.trade-detail-overlay{padding:20px 12px}.table-wrap{overflow-x:auto}.trade-table-with-notes{min-width:980px}.trade-table-with-notes thead,.trade-table-with-notes tbody,.trade-table-with-notes tfoot{display:table-row-group}.trade-table-with-notes thead{display:table-header-group}.trade-table-with-notes tfoot{display:table-footer-group}.trade-table-with-notes thead tr,.trade-table-with-notes tbody tr,.trade-table-with-notes tfoot tr{display:table-row}.trade-table-with-notes th,.trade-table-with-notes td{display:table-cell!important}.trade-table-with-notes th:nth-child(9),.trade-table-with-notes td:nth-child(9){display:table-cell!important}.trade-table-with-notes th:nth-child(11),.trade-table-with-notes td:nth-child(11){display:table-cell!important}}
 @media(max-width:540px){.trade-detail-metrics{grid-template-columns:1fr}.trade-detail-dialog{padding:20px}.trade-detail-title-line h2{font-size:1.45rem}.trade-detail-card dl div{align-items:flex-start;flex-direction:column;gap:4px}.trade-detail-card dd{text-align:left}}
