@@ -62,12 +62,36 @@
 }
 
 .trade-list-head{
-  padding:0 18px 8px;
-  color:#9297ad;
-  font-size:.66rem;
+  position:sticky;
+  top:10px;
+  z-index:8;
+  padding:14px 18px;
+  margin-bottom:4px;
+  border:1px solid #5660f2;
+  border-radius:14px;
+  background:linear-gradient(105deg,#343bcc 0%,#5159ed 48%,#666cf7 100%);
+  box-shadow:0 10px 26px rgba(52,59,204,.24),inset 0 1px 0 rgba(255,255,255,.22);
+  color:#fff;
+  font-size:.76rem;
   font-weight:800;
-  letter-spacing:.035em;
+  letter-spacing:.01em;
 }
+
+.trade-list-head span{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  color:#fff;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  opacity:1;
+}
+
+.trade-list-head span:nth-child(1),
+.trade-list-head span:nth-child(5),
+.trade-list-head span:nth-child(8),
+.trade-list-head span:nth-child(9),
+.trade-list-head span:nth-child(10){text-align:center}
 
 .trade-plan-card{
   position:relative;
@@ -484,7 +508,7 @@
   }
 
   .trade-plan-main{padding-left:18px;padding-right:14px}
-  .trade-list-head{padding-left:16px;padding-right:14px}
+  .trade-list-head{padding:12px 14px;font-size:.72rem}
   .result-col{gap:5px}
   .result-col .status{min-width:72px;padding:6px 8px;font-size:.69rem}
   .result-col .result{font-size:.70rem}
