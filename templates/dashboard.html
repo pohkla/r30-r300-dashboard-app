@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v=11">
-  <link rel="stylesheet" href="{{ url_for('static', path='trade-detail.css') }}?v=1">
+  <link rel="stylesheet" href="{{ url_for('static', path='trade-detail.css') }}?v=2">
 </head>
 <body>
 <main class="r30-dashboard">
@@ -90,9 +90,10 @@
 
   <section class="trade-report" id="trade-report">
     <div class="section-head">
-      <div><span class="eyebrow">TRADE REPORT</span><h2>ตารางสรุปแผนทั้งหมด</h2><small class="table-range">แสดง {{ row_start }}–{{ row_end }} จาก {{ total_rows }} รายการ</small></div>
+      <div><span class="eyebrow">TRADE REPORT</span><h2>รายการแผนทั้งหมด</h2><small class="table-range">แสดง {{ row_start }}–{{ row_end }} จาก {{ total_rows }} รายการ</small></div>
       <div class="legend"><span class="win-dot">ชนะ {{ wins }}</span><span class="loss-dot">แพ้ {{ losses }}</span><span class="skip-dot">ไม่ได้เข้า {{ no_entries }}</span></div>
     </div>
+
     <form class="table-tools" method="get" action="{{ '/admin' if is_admin else '/dashboard' }}#trade-report">
       <label class="search-field"><span>ค้นหา</span><div><b>⌕</b><input type="search" name="q" value="{{ q }}" placeholder="ค้นหาเลขแผน ราคา หรือหมายเหตุ"></div></label>
       <label><span>สถานะ</span><select name="status"><option value="">ทุกสถานะ</option>{% for value,label in [('pending','กำลังรัน'),('win','TP'),('loss','SL'),('no-entry','ไม่ได้เข้า')] %}<option value="{{ value }}" {{ 'selected' if status_filter == value }}>{{ label }}</option>{% endfor %}</select></label>
@@ -105,28 +106,101 @@
     {% if total_rows == 0 %}
     <div class="no-results"><strong>ไม่พบแผนที่ตรงกับเงื่อนไข</strong><span>ลองเปลี่ยนคำค้นหาหรือล้างตัวกรอง</span></div>
     {% else %}
-    <div class="table-wrap">
-      <table class="trade-table-with-notes">
-        <thead><tr><th>แผน</th><th>วัน/เวลา</th><th>สินทรัพย์</th><th>ฝั่ง</th><th>Entry</th><th>Stop Loss</th><th>เป้าหมายสูงสุดที่ทำได้</th><th>R:R</th><th>หมายเหตุ</th><th>ผลลัพธ์</th><th>ข้อมูล</th></tr></thead>
-        <tbody>
-          {% for p in table_plans %}
-          <tr class="result-row {{ p.status }}">
-            <td><a class="plan-table-link" href="#trade-detail-{{ p.id }}"><strong>#{{ p.id }}</strong></a></td>
-            <td class="trade-time"><span><b>เข้า</b> {{ p.open_at|thai_dt }}</span><span><b>ปิด</b> {{ p.close_at|thai_dt }}</span>{% if is_admin %}<a class="edit-link" href="/admin/trade/{{ p.id }}">แก้ไขแผน</a>{% endif %}</td>
-            <td><span class="symbol-badge">{{ p.symbol }}</span></td>
-            <td><span class="side {{ p.side|lower }}">{{ p.side }}</span></td>
-            <td>{{ p.entry|price(p.symbol) }}</td>
-            <td>{{ p.stop_loss|price(p.symbol) }}{% if p.risk %}<small>(−{{ p.risk|num }} จุด{% if p.risk_pips is not none %} / {{ '%.1f'|format(p.risk_pips) }} pips{% endif %})</small>{% endif %}</td>
-            <td><strong>{{ p.target_name }} {{ p.target_price|price(p.symbol) }}</strong><small class="reward">+{{ p.reward|num }} จุด{% if p.reward_pips is not none %} / {{ '%.1f'|format(p.reward_pips) }} pips{% endif %}</small></td>
-            <td>{{ p.rr }}</td>
-            <td class="note-cell" title="{{ p.note or 'ไม่มีหมายเหตุ' }}">{% if p.note %}<span>{{ p.note }}</span>{% else %}<small>—</small>{% endif %}</td>
-            <td class="result-cell {{ p.status }}"><span class="status {{ p.status }}">{{ status_label(p.status) }}</span>{% if p.result %}<strong class="result {{ 'positive' if p.result > 0 else 'negative' }}">{{ '+' if p.result > 0 else '−' }}{{ p.result|abs|num }} จุด</strong>{% else %}<small class="result-note">ไม่นับผลลัพธ์</small>{% endif %}</td>
-            <td class="view-cell"><a class="view-link" href="#trade-detail-{{ p.id }}">ดูข้อมูล <span>→</span></a></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot><tr><td colspan="9">ผลรวมสุทธิที่ยืนยันแล้ว</td><td colspan="2" class="net-total">{{ '+' if net >= 0 else '−' }}{{ net|abs|num }} จุด</td></tr></tfoot>
-      </table>
+    <div class="trade-list" role="list">
+      <div class="trade-list-head" aria-hidden="true">
+        <span>แผน</span>
+        <span>วัน/เวลา</span>
+        <span>สินทรัพย์</span>
+        <span>ฝั่ง</span>
+        <span>Entry</span>
+        <span>Stop Loss</span>
+        <span>เป้าหมาย</span>
+        <span>R:R</span>
+        <span>ผลลัพธ์</span>
+        <span>ข้อมูล</span>
+      </div>
+
+      {% for p in table_plans %}
+      <article class="trade-plan-card {{ p.status }}" role="listitem">
+        <div class="trade-plan-main">
+          <div class="plan-col plan-id-col">
+            <span class="mobile-label">แผน</span>
+            <a class="plan-table-link" href="#trade-detail-{{ p.id }}"><strong>#{{ p.id }}</strong></a>
+          </div>
+
+          <div class="plan-col trade-time">
+            <span><b>เข้า</b> {{ p.open_at|thai_dt }}</span>
+            <span><b>ปิด</b> {{ p.close_at|thai_dt }}</span>
+            {% if is_admin %}<a class="edit-link" href="/admin/trade/{{ p.id }}">แก้ไขแผน</a>{% endif %}
+          </div>
+
+          <div class="plan-col">
+            <span class="mobile-label">สินทรัพย์</span>
+            <span class="symbol-badge">{{ p.symbol }}</span>
+          </div>
+
+          <div class="plan-col">
+            <span class="mobile-label">ฝั่ง</span>
+            <span class="side {{ p.side|lower }}">{{ p.side }}</span>
+          </div>
+
+          <div class="plan-col price-col">
+            <span class="mobile-label">Entry</span>
+            <strong>{{ p.entry|price(p.symbol) }}</strong>
+          </div>
+
+          <div class="plan-col price-col">
+            <span class="mobile-label">Stop Loss</span>
+            <strong>{{ p.stop_loss|price(p.symbol) }}</strong>
+            {% if p.risk %}
+            <small>−{{ p.risk|num }} จุด{% if p.risk_pips is not none %} / {{ '%.1f'|format(p.risk_pips) }} pips{% endif %}</small>
+            {% endif %}
+          </div>
+
+          <div class="plan-col target-col">
+            <span class="mobile-label">เป้าหมาย</span>
+            <strong>{{ p.target_name }} {{ p.target_price|price(p.symbol) }}</strong>
+            <small class="reward">+{{ p.reward|num }} จุด{% if p.reward_pips is not none %} / {{ '%.1f'|format(p.reward_pips) }} pips{% endif %}</small>
+          </div>
+
+          <div class="plan-col rr-col">
+            <span class="mobile-label">R:R</span>
+            <strong>{{ p.rr }}</strong>
+          </div>
+
+          <div class="plan-col result-col">
+            <span class="mobile-label">ผลลัพธ์</span>
+            <span class="status {{ p.status }}">{{ status_label(p.status) }}</span>
+            {% if p.result %}
+            <strong class="result {{ 'positive' if p.result > 0 else 'negative' }}">{{ '+' if p.result > 0 else '−' }}{{ p.result|abs|num }} จุด</strong>
+            {% else %}
+            <small class="result-note">ไม่นับผลลัพธ์</small>
+            {% endif %}
+          </div>
+
+          <div class="plan-col action-col">
+            <a class="view-link card-view-button" href="#trade-detail-{{ p.id }}">ดูข้อมูล <span>→</span></a>
+          </div>
+        </div>
+
+        <div class="trade-plan-note">
+          <div class="trade-plan-note-head">
+            <span class="note-icon">✎</span>
+            <strong>หมายเหตุ</strong>
+          </div>
+          {% if p.note %}
+          <p>{{ p.note }}</p>
+          {% else %}
+          <p class="empty-note">— ไม่มีหมายเหตุ —</p>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="trade-list-footer">
+      <span>ผลรวมสุทธิที่ยืนยันแล้ว</span>
+      <strong class="{{ 'positive' if net >= 0 else 'negative' }}">{{ '+' if net >= 0 else '−' }}{{ net|abs|num }} จุด</strong>
     </div>
     {% endif %}
 
