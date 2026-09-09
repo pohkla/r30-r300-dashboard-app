@@ -4,6 +4,11 @@
   if (!fields.length) return;
 
   const pad = (value) => String(value).padStart(2, '0');
+  const THAI_MONTHS = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+  const THAI_WEEKDAYS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 
   const toDisplayDate = (isoDate) => {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
@@ -27,6 +32,14 @@
 
     return `${year}-${pad(month)}-${pad(day)}`;
   };
+
+  const isoToDate = (isoDate) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate || '');
+    if (!match) return null;
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  };
+
+  const dateToIso = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
   const parseTime = (value) => {
     const match = /^(\d{2}):(\d{2})$/.exec((value || '').trim());
@@ -53,20 +66,55 @@
   const localNowParts = () => {
     const now = new Date();
     return {
-      isoDate: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      isoDate: dateToIso(now),
       time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
     };
+  };
+
+  const closeAllCalendars = (except = null) => {
+    document.querySelectorAll('.r300-calendar.is-open').forEach((calendar) => {
+      if (calendar !== except) calendar.classList.remove('is-open');
+    });
   };
 
   const initField = (root) => {
     const hidden = root.querySelector('[data-datetime-value]');
     const dateText = root.querySelector('[data-date-text]');
     const timeText = root.querySelector('[data-time-text]');
-    const nativeDate = root.querySelector('[data-native-date]');
     const calendarButton = root.querySelector('[data-open-calendar]');
     const nowButton = root.querySelector('[data-now]');
     const todayButton = root.querySelector('[data-today]');
     const clearButton = root.querySelector('[data-clear]');
+    const dateControl = dateText.closest('.datetime-control');
+
+    let viewDate = new Date();
+
+    const calendar = document.createElement('div');
+    calendar.className = 'r300-calendar';
+    calendar.setAttribute('role', 'dialog');
+    calendar.setAttribute('aria-label', 'เลือกวันที่');
+    calendar.innerHTML = `
+      <div class="r300-calendar-head">
+        <button type="button" class="r300-calendar-nav" data-cal-prev aria-label="เดือนก่อนหน้า">‹</button>
+        <strong data-cal-title></strong>
+        <button type="button" class="r300-calendar-nav" data-cal-next aria-label="เดือนถัดไป">›</button>
+      </div>
+      <div class="r300-calendar-weekdays">
+        ${THAI_WEEKDAYS.map((day) => `<span>${day}</span>`).join('')}
+      </div>
+      <div class="r300-calendar-days" data-cal-days></div>
+      <div class="r300-calendar-footer">
+        <button type="button" data-cal-today>วันนี้</button>
+        <button type="button" data-cal-close>ปิด</button>
+      </div>`;
+    dateControl.appendChild(calendar);
+
+    const title = calendar.querySelector('[data-cal-title]');
+    const days = calendar.querySelector('[data-cal-days]');
+    const prev = calendar.querySelector('[data-cal-prev]');
+    const next = calendar.querySelector('[data-cal-next]');
+    const calendarToday = calendar.querySelector('[data-cal-today]');
+    const calendarClose = calendar.querySelector('[data-cal-close]');
 
     const splitValue = () => {
       const raw = (hidden.value || '').trim();
@@ -92,8 +140,6 @@
       markValidity(dateText, dateValid, 'กรุณาระบุวันที่รูปแบบ dd/mm/yyyy เช่น 09/09/2026');
       markValidity(timeText, timeValid, 'กรุณาระบุเวลาแบบ 24 ชั่วโมง เช่น 22:47');
 
-      nativeDate.value = isoDate || '';
-
       if (!dateRaw && !timeRaw) {
         hidden.value = '';
       } else if (isoDate && time) {
@@ -115,9 +161,51 @@
     const setParts = (isoDate, time) => {
       dateText.value = isoDate ? toDisplayDate(isoDate) : '';
       timeText.value = time || '';
-      nativeDate.value = isoDate || '';
       sync();
     };
+
+    const renderCalendar = () => {
+      const year = viewDate.getFullYear();
+      const month = viewDate.getMonth();
+      title.textContent = `${THAI_MONTHS[month]} ${year}`;
+      days.innerHTML = '';
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const lastDate = new Date(year, month + 1, 0).getDate();
+      const selectedIso = parseDisplayDate(dateText.value);
+      const todayIso = dateToIso(new Date());
+
+      for (let i = 0; i < firstDay; i += 1) {
+        const blank = document.createElement('span');
+        blank.className = 'r300-calendar-blank';
+        days.appendChild(blank);
+      }
+
+      for (let day = 1; day <= lastDate; day += 1) {
+        const date = new Date(year, month, day);
+        const iso = dateToIso(date);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'r300-calendar-day';
+        button.textContent = String(day);
+        button.dataset.isoDate = iso;
+        button.setAttribute('aria-label', `${day} ${THAI_MONTHS[month]} ${year}`);
+        if (iso === todayIso) button.classList.add('is-today');
+        if (iso === selectedIso) button.classList.add('is-selected');
+        days.appendChild(button);
+      }
+    };
+
+    const openCalendar = () => {
+      const selected = isoToDate(parseDisplayDate(dateText.value));
+      viewDate = selected || new Date();
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+      renderCalendar();
+      closeAllCalendars(calendar);
+      calendar.classList.add('is-open');
+    };
+
+    const closeCalendar = () => calendar.classList.remove('is-open');
 
     const initial = splitValue();
     setParts(initial.isoDate, initial.time);
@@ -126,7 +214,11 @@
       dateText.value = formatDateTyping(dateText.value);
       sync();
     });
-    dateText.addEventListener('blur', () => sync({ validate: Boolean(dateText.value || timeText.value) }));
+    dateText.addEventListener('focus', openCalendar);
+    dateText.addEventListener('click', openCalendar);
+    dateText.addEventListener('blur', () => {
+      window.setTimeout(() => sync({ validate: Boolean(dateText.value || timeText.value) }), 0);
+    });
 
     timeText.addEventListener('input', () => {
       timeText.value = formatTimeTyping(timeText.value);
@@ -134,38 +226,68 @@
     });
     timeText.addEventListener('blur', () => sync({ validate: Boolean(dateText.value || timeText.value) }));
 
-    nativeDate.addEventListener('change', () => {
-      if (nativeDate.value) dateText.value = toDisplayDate(nativeDate.value);
+    calendarButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (calendar.classList.contains('is-open')) closeCalendar();
+      else openCalendar();
+    });
+
+    prev.addEventListener('click', (event) => {
+      event.stopPropagation();
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
+      renderCalendar();
+    });
+
+    next.addEventListener('click', (event) => {
+      event.stopPropagation();
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+      renderCalendar();
+    });
+
+    days.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-iso-date]');
+      if (!button) return;
+      event.stopPropagation();
+      dateText.value = toDisplayDate(button.dataset.isoDate);
       sync();
+      closeCalendar();
       timeText.focus();
     });
 
-    calendarButton.addEventListener('click', () => {
-      const current = parseDisplayDate(dateText.value);
-      if (current) nativeDate.value = current;
-      if (typeof nativeDate.showPicker === 'function') {
-        nativeDate.showPicker();
-      } else {
-        nativeDate.focus();
-        nativeDate.click();
-      }
+    calendarToday.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const now = localNowParts();
+      dateText.value = toDisplayDate(now.isoDate);
+      sync();
+      closeCalendar();
+      timeText.focus();
     });
+
+    calendarClose.addEventListener('click', (event) => {
+      event.stopPropagation();
+      closeCalendar();
+    });
+
+    calendar.addEventListener('click', (event) => event.stopPropagation());
 
     nowButton.addEventListener('click', () => {
       const now = localNowParts();
       setParts(now.isoDate, now.time);
+      closeCalendar();
     });
 
     todayButton.addEventListener('click', () => {
       const now = localNowParts();
       const currentTime = parseTime(timeText.value) || now.time;
       setParts(now.isoDate, currentTime);
+      closeCalendar();
     });
 
     clearButton.addEventListener('click', () => {
       setParts('', '');
       markValidity(dateText, true);
       markValidity(timeText, true);
+      closeCalendar();
       dateText.focus();
     });
 
@@ -173,6 +295,14 @@
   };
 
   const controllers = Array.from(fields, initField);
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.datetime-control')) closeAllCalendars();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeAllCalendars();
+  });
 
   form?.addEventListener('submit', (event) => {
     let valid = true;
