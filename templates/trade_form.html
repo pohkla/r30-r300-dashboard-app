@@ -1,6 +1,199 @@
-<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ 'แก้ไข' if editing else 'เพิ่ม' }}แผน R30/R300</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v=11"></head>
-<body><main class="trade-editor"><header><div><span class="eyebrow">TRADE JOURNAL EDITOR</span><h1>{{ 'แก้ไขแผน #' ~ form.id if editing else 'เพิ่มแผนใหม่' }}</h1><p>ระบบคำนวณจำนวนจุด ผลลัพธ์ และ R:R ให้อัตโนมัติ</p></div><a href="/admin" class="back-link">← กลับหน้าจัดการ</a></header>
-{% if errors %}<div class="form-alert" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
-<form method="post" action="/admin/trade/save" class="trade-form"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ form.id or 0 }}">
-<section><h2>ข้อมูลแผน</h2><div class="form-grid"><label>สินทรัพย์ / คู่เงิน<select name="symbol" required>{% for symbol in supported_symbols %}<option value="{{ symbol }}" {{ 'selected' if form.symbol == symbol }}>{{ symbol }}{{ ' · ทองคำ' if symbol == 'XAUUSD' else ' · Forex' }}</option>{% endfor %}</select></label><label>ฝั่ง<select name="side" required><option {{ 'selected' if form.side == 'BUY' }}>BUY</option><option {{ 'selected' if form.side == 'SELL' }}>SELL</option></select></label><label>สถานะ<select name="status" required>{% for value,label in [('pending','รอผล'),('win','TP'),('loss','SL'),('no-entry','ไม่ได้เข้า')] %}<option value="{{ value }}" {{ 'selected' if form.status == value }}>{{ label }}</option>{% endfor %}</select></label><label>Entry<input type="number" step="any" name="entry" value="{{ form.entry }}" required></label><label>Stop Loss<input type="number" step="any" name="stop_loss" value="{{ form.stop_loss }}"></label><label>TP1<input type="number" step="any" name="tp1" value="{{ form.tp1 }}" required></label><label>TP2 (ถ้ามี)<input type="number" step="any" name="tp2" value="{{ form.tp2 }}"></label><label>TP สูงสุดที่ชน<select name="highest_target"><option value="">ยังไม่ชน</option><option value="TP1" {{ 'selected' if form.highest_target == 'TP1' }}>TP1</option><option value="TP2" {{ 'selected' if form.highest_target == 'TP2' }}>TP2</option></select></label></div><p class="calculation-help">XAUUSD คำนวณทุก 0.01 = 1 จุด · Forex คำนวณตามหลักสุดท้ายของราคา และแสดงทั้ง Point กับ Pip</p></section>
-<section><h2>วัน เวลา และบทเรียน</h2><div class="form-grid"><label>วัน/เวลาเข้า<input type="datetime-local" name="open_at" value="{{ form.open_at }}"></label><label>วัน/เวลาปิด<input type="datetime-local" name="close_at" value="{{ form.close_at }}"></label><label class="full">หมายเหตุ<textarea name="note" rows="4" placeholder="เงื่อนไขเข้าแผน ผลที่เกิดขึ้น และบทเรียน">{{ form.note }}</textarea></label></div></section><div class="form-actions"><a href="/admin" class="cancel-button">ยกเลิก</a><button type="submit">บันทึกลง GitHub</button></div></form></main></body></html>
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ 'แก้ไข' if editing else 'เพิ่ม' }}แผน R30/R300</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v=11">
+  <link rel="stylesheet" href="{{ url_for('static', path='trade_form_datetime.css') }}?v=1">
+  <script src="{{ url_for('static', path='trade_form.js') }}?v=1" defer></script>
+</head>
+<body>
+<main class="trade-editor">
+  <header>
+    <div>
+      <span class="eyebrow">TRADE JOURNAL EDITOR</span>
+      <h1>{{ 'แก้ไขแผน #' ~ form.id if editing else 'เพิ่มแผนใหม่' }}</h1>
+      <p>ระบบคำนวณจำนวนจุด ผลลัพธ์ และ R:R ให้อัตโนมัติ</p>
+    </div>
+    <a href="/admin" class="back-link">← กลับหน้าจัดการ</a>
+  </header>
+
+  {% if errors %}
+  <div class="form-alert" role="alert">
+    {% for error in errors %}<p>{{ error }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/admin/trade/save" class="trade-form" data-trade-form>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="id" value="{{ form.id or 0 }}">
+
+    <section>
+      <h2>ข้อมูลแผน</h2>
+      <div class="form-grid">
+        <label>สินทรัพย์ / คู่เงิน
+          <select name="symbol" required>
+            {% for symbol in supported_symbols %}
+            <option value="{{ symbol }}" {{ 'selected' if form.symbol == symbol }}>{{ symbol }}{{ ' · ทองคำ' if symbol == 'XAUUSD' else ' · Forex' }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>ฝั่ง
+          <select name="side" required>
+            <option {{ 'selected' if form.side == 'BUY' }}>BUY</option>
+            <option {{ 'selected' if form.side == 'SELL' }}>SELL</option>
+          </select>
+        </label>
+        <label>สถานะ
+          <select name="status" required>
+            {% for value,label in [('pending','รอผล'),('win','TP'),('loss','SL'),('no-entry','ไม่ได้เข้า')] %}
+            <option value="{{ value }}" {{ 'selected' if form.status == value }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Entry<input type="number" step="any" name="entry" value="{{ form.entry }}" required></label>
+        <label>Stop Loss<input type="number" step="any" name="stop_loss" value="{{ form.stop_loss }}"></label>
+        <label>TP1<input type="number" step="any" name="tp1" value="{{ form.tp1 }}" required></label>
+        <label>TP2 (ถ้ามี)<input type="number" step="any" name="tp2" value="{{ form.tp2 }}"></label>
+        <label>TP สูงสุดที่ชน
+          <select name="highest_target">
+            <option value="">ยังไม่ชน</option>
+            <option value="TP1" {{ 'selected' if form.highest_target == 'TP1' }}>TP1</option>
+            <option value="TP2" {{ 'selected' if form.highest_target == 'TP2' }}>TP2</option>
+          </select>
+        </label>
+      </div>
+      <p class="calculation-help">XAUUSD คำนวณทุก 0.01 = 1 จุด · Forex คำนวณตามหลักสุดท้ายของราคา และแสดงทั้ง Point กับ Pip</p>
+    </section>
+
+    <section class="datetime-section">
+      <div class="form-section-head">
+        <div>
+          <h2>วัน เวลา และบทเรียน</h2>
+          <p>ระบุเวลาเข้าและปิด Trade แบบ 24 ชั่วโมง</p>
+        </div>
+      </div>
+
+      <div class="datetime-grid">
+        <article class="datetime-card" data-datetime-field>
+          <div class="datetime-card-head">
+            <span class="datetime-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M7 2v3M17 2v3M3.5 9h17M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>
+            </span>
+            <div>
+              <h3>วันที่ / เวลาเข้า Trade</h3>
+              <p>เวลาที่เข้าออเดอร์จริง</p>
+            </div>
+          </div>
+
+          <input type="hidden" name="open_at" value="{{ form.open_at }}" data-datetime-value>
+
+          <div class="datetime-input-row">
+            <div class="datetime-part date-part">
+              <span class="datetime-label">วันที่</span>
+              <div class="datetime-control">
+                <input type="text" inputmode="numeric" autocomplete="off" maxlength="10"
+                       placeholder="dd/mm/yyyy" aria-label="วันที่เข้า Trade รูปแบบ วัน/เดือน/ปี"
+                       data-date-text>
+                <button type="button" class="datetime-picker-button" data-open-calendar aria-label="เปิดปฏิทินสำหรับวันที่เข้า Trade">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3.5 9h17M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>
+                </button>
+                <input type="date" class="native-date-picker" tabindex="-1" aria-hidden="true" data-native-date>
+              </div>
+            </div>
+
+            <div class="datetime-part time-part">
+              <span class="datetime-label">เวลา <small>(24 ชั่วโมง)</small></span>
+              <div class="datetime-control">
+                <input type="text" inputmode="numeric" autocomplete="off" maxlength="5"
+                       placeholder="HH:MM" aria-label="เวลาเข้า Trade แบบ 24 ชั่วโมง"
+                       data-time-text>
+                <span class="datetime-static-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 7v5l3.5 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="datetime-actions">
+            <button type="button" class="datetime-now" data-now>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3.5 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+              ใช้เวลาปัจจุบัน
+            </button>
+            <button type="button" class="datetime-text-action" data-today>วันนี้</button>
+            <span class="datetime-action-separator" aria-hidden="true"></span>
+            <button type="button" class="datetime-text-action is-muted" data-clear>ล้างค่า</button>
+          </div>
+        </article>
+
+        <article class="datetime-card" data-datetime-field>
+          <div class="datetime-card-head">
+            <span class="datetime-icon close-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M12 7v5l3.5 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+            </span>
+            <div>
+              <h3>วันที่ / เวลาปิด Trade</h3>
+              <p>เวลากรณีปิดออเดอร์แล้ว</p>
+            </div>
+          </div>
+
+          <input type="hidden" name="close_at" value="{{ form.close_at }}" data-datetime-value>
+
+          <div class="datetime-input-row">
+            <div class="datetime-part date-part">
+              <span class="datetime-label">วันที่</span>
+              <div class="datetime-control">
+                <input type="text" inputmode="numeric" autocomplete="off" maxlength="10"
+                       placeholder="dd/mm/yyyy" aria-label="วันที่ปิด Trade รูปแบบ วัน/เดือน/ปี"
+                       data-date-text>
+                <button type="button" class="datetime-picker-button" data-open-calendar aria-label="เปิดปฏิทินสำหรับวันที่ปิด Trade">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v3M17 2v3M3.5 9h17M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>
+                </button>
+                <input type="date" class="native-date-picker" tabindex="-1" aria-hidden="true" data-native-date>
+              </div>
+            </div>
+
+            <div class="datetime-part time-part">
+              <span class="datetime-label">เวลา <small>(24 ชั่วโมง)</small></span>
+              <div class="datetime-control">
+                <input type="text" inputmode="numeric" autocomplete="off" maxlength="5"
+                       placeholder="HH:MM" aria-label="เวลาปิด Trade แบบ 24 ชั่วโมง"
+                       data-time-text>
+                <span class="datetime-static-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 7v5l3.5 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="datetime-actions">
+            <button type="button" class="datetime-now" data-now>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3.5 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+              ใช้เวลาปัจจุบัน
+            </button>
+            <button type="button" class="datetime-text-action" data-today>วันนี้</button>
+            <span class="datetime-action-separator" aria-hidden="true"></span>
+            <button type="button" class="datetime-text-action is-muted" data-clear>ล้างค่า</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="form-grid note-grid">
+        <label class="full">หมายเหตุ
+          <textarea name="note" rows="4" placeholder="เงื่อนไขเข้าแผน ผลที่เกิดขึ้น และบทเรียน">{{ form.note }}</textarea>
+        </label>
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <a href="/admin" class="cancel-button">ยกเลิก</a>
+      <button type="submit">บันทึกลง GitHub</button>
+    </div>
+  </form>
+</main>
+</body>
+</html>
