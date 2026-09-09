@@ -62,7 +62,7 @@ async def security_headers(request: Request, call_next):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; style-src 'self' https://fonts.googleapis.com; "
         "font-src https://fonts.gstatic.com; img-src 'self' data:; "
-        "script-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        "script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     )
     if request.url.path.startswith(("/admin", "/login")):
         response.headers["Cache-Control"] = "no-store"
