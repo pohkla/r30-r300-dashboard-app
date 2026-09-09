@@ -50,6 +50,13 @@
     return `${pad(hour)}:${pad(minute)}`;
   };
 
+  const timeToMinutes = (value) => {
+    const parsed = parseTime(value);
+    if (!parsed) return Number.POSITIVE_INFINITY;
+    const [hour, minute] = parsed.split(':').map(Number);
+    return hour * 60 + minute;
+  };
+
   const formatDateTyping = (value) => {
     const digits = value.replace(/\D/g, '').slice(0, 8);
     if (digits.length <= 2) return digits;
@@ -77,6 +84,12 @@
     });
   };
 
+  const closeAllTimePickers = (except = null) => {
+    document.querySelectorAll('.r300-time-picker.is-open').forEach((picker) => {
+      if (picker !== except) picker.classList.remove('is-open');
+    });
+  };
+
   const initField = (root) => {
     const hidden = root.querySelector('[data-datetime-value]');
     const dateText = root.querySelector('[data-date-text]');
@@ -86,6 +99,7 @@
     const todayButton = root.querySelector('[data-today]');
     const clearButton = root.querySelector('[data-clear]');
     const dateControl = dateText.closest('.datetime-control');
+    const timeControl = timeText.closest('.datetime-control');
 
     let viewDate = new Date();
 
@@ -115,6 +129,25 @@
     const next = calendar.querySelector('[data-cal-next]');
     const calendarToday = calendar.querySelector('[data-cal-today]');
     const calendarClose = calendar.querySelector('[data-cal-close]');
+
+    const timePicker = document.createElement('div');
+    timePicker.className = 'r300-time-picker';
+    timePicker.setAttribute('role', 'dialog');
+    timePicker.setAttribute('aria-label', 'เลือกเวลาแบบ 24 ชั่วโมง');
+    timePicker.innerHTML = `
+      <div class="r300-time-head">
+        <div>
+          <strong data-time-title>เลือกเวลา</strong>
+          <small>24 ชั่วโมง</small>
+        </div>
+        <button type="button" class="r300-time-close" data-time-close aria-label="ปิดตัวเลือกเวลา">×</button>
+      </div>
+      <div class="r300-time-list" data-time-list></div>`;
+    timeControl.appendChild(timePicker);
+
+    const timeTitle = timePicker.querySelector('[data-time-title]');
+    const timeList = timePicker.querySelector('[data-time-list]');
+    const timeClose = timePicker.querySelector('[data-time-close]');
 
     const splitValue = () => {
       const raw = (hidden.value || '').trim();
@@ -196,16 +229,52 @@
       }
     };
 
+    const renderTimePicker = () => {
+      const selected = parseTime(timeText.value);
+      const options = [];
+      for (let hour = 0; hour < 24; hour += 1) {
+        options.push(`${pad(hour)}:00`, `${pad(hour)}:30`);
+      }
+      if (selected && !options.includes(selected)) options.push(selected);
+      options.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+
+      timeTitle.textContent = selected || 'เลือกเวลา';
+      timeList.innerHTML = options.map((value) => (
+        `<button type="button" class="r300-time-option${value === selected ? ' is-selected' : ''}" data-time-option="${value}" aria-label="เลือกเวลา ${value}">${value}</button>`
+      )).join('');
+    };
+
     const openCalendar = () => {
       const selected = isoToDate(parseDisplayDate(dateText.value));
       viewDate = selected || new Date();
       viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
       renderCalendar();
+      closeAllTimePickers();
       closeAllCalendars(calendar);
       calendar.classList.add('is-open');
     };
 
     const closeCalendar = () => calendar.classList.remove('is-open');
+
+    const openTimePicker = () => {
+      renderTimePicker();
+      closeAllCalendars();
+      closeAllTimePickers(timePicker);
+      timePicker.classList.add('is-open');
+      window.requestAnimationFrame(() => {
+        const selectedButton = timePicker.querySelector('.r300-time-option.is-selected');
+        if (selectedButton) {
+          selectedButton.scrollIntoView({ block: 'center' });
+        } else {
+          const now = localNowParts().time;
+          const nearestMinute = Number(now.slice(3, 5)) < 30 ? '00' : '30';
+          const nearest = `${now.slice(0, 2)}:${nearestMinute}`;
+          timePicker.querySelector(`[data-time-option="${nearest}"]`)?.scrollIntoView({ block: 'center' });
+        }
+      });
+    };
+
+    const closeTimePicker = () => timePicker.classList.remove('is-open');
 
     const initial = splitValue();
     setParts(initial.isoDate, initial.time);
@@ -223,8 +292,13 @@
     timeText.addEventListener('input', () => {
       timeText.value = formatTimeTyping(timeText.value);
       sync();
+      if (timePicker.classList.contains('is-open')) renderTimePicker();
     });
-    timeText.addEventListener('blur', () => sync({ validate: Boolean(dateText.value || timeText.value) }));
+    timeText.addEventListener('focus', openTimePicker);
+    timeText.addEventListener('click', openTimePicker);
+    timeText.addEventListener('blur', () => {
+      window.setTimeout(() => sync({ validate: Boolean(dateText.value || timeText.value) }), 0);
+    });
 
     calendarButton.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -270,10 +344,27 @@
 
     calendar.addEventListener('click', (event) => event.stopPropagation());
 
+    timeList.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-time-option]');
+      if (!button) return;
+      event.stopPropagation();
+      timeText.value = button.dataset.timeOption;
+      sync();
+      closeTimePicker();
+    });
+
+    timeClose.addEventListener('click', (event) => {
+      event.stopPropagation();
+      closeTimePicker();
+    });
+
+    timePicker.addEventListener('click', (event) => event.stopPropagation());
+
     nowButton.addEventListener('click', () => {
       const now = localNowParts();
       setParts(now.isoDate, now.time);
       closeCalendar();
+      closeTimePicker();
     });
 
     todayButton.addEventListener('click', () => {
@@ -281,6 +372,7 @@
       const currentTime = parseTime(timeText.value) || now.time;
       setParts(now.isoDate, currentTime);
       closeCalendar();
+      closeTimePicker();
     });
 
     clearButton.addEventListener('click', () => {
@@ -288,6 +380,7 @@
       markValidity(dateText, true);
       markValidity(timeText, true);
       closeCalendar();
+      closeTimePicker();
       dateText.focus();
     });
 
@@ -297,11 +390,17 @@
   const controllers = Array.from(fields, initField);
 
   document.addEventListener('click', (event) => {
-    if (!event.target.closest('.datetime-control')) closeAllCalendars();
+    if (!event.target.closest('.datetime-control')) {
+      closeAllCalendars();
+      closeAllTimePickers();
+    }
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeAllCalendars();
+    if (event.key === 'Escape') {
+      closeAllCalendars();
+      closeAllTimePickers();
+    }
   });
 
   form?.addEventListener('submit', (event) => {
